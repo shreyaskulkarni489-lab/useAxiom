@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { FolderKanban, Search, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FolderKanban, Search, Plus, X } from "lucide-react";
 import { Button, Card, Badge } from "@useaxiom/ui";
 
 interface Project {
@@ -17,45 +18,141 @@ interface Project {
   tasksTotal: number;
 }
 
+interface DBProject {
+  id: string;
+  name: string;
+  category?: string;
+  objective: string;
+  status: string;
+  healthStatus?: string;
+  healthScore?: number;
+}
+
 export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "progress" | "proposed" | "completed">("all");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newObjective, setNewObjective] = useState("");
+  
+  const router = useRouter();
 
-  const [projects] = useState<Project[]>([
-    {
-      id: "axiom-platform-setup",
-      name: "Axiom Platform Setup",
-      category: "Core Infrastructure",
-      description: "Initialize workspace configurations, setup local dev containers, and configure NestJS base modules.",
-      status: "progress",
-      progress: 75,
-      health: "on_track",
-      tasksDone: 3,
-      tasksTotal: 4
-    },
-    {
-      id: "q3-marketing-launch",
-      name: "Q3 Marketing Launch",
-      category: "Product Growth",
-      description: "Deconstruct goal into atomic social media and creative asset tasks, and assign to marketing resource pool.",
-      status: "proposed",
-      progress: 0,
-      health: "review",
-      tasksDone: 0,
-      tasksTotal: 3
-    },
-    {
-      id: "legacy-db-migration",
-      name: "Legacy Database Migration",
-      category: "Database Ops",
-      description: "Migrate historical organization records from old SQL Dump into Postgres Prisma schema.",
-      status: "completed",
-      progress: 100,
-      health: "on_track",
-      tasksDone: 8,
-      tasksTotal: 8
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const token = localStorage.getItem('axiom_token');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+        
+        const res = await fetch('/api/v1/projects', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.status === 401) {
+          localStorage.removeItem('axiom_token');
+          router.push('/login');
+          return;
+        }
+        
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          // Map the backend DB projects to frontend visual model
+          const mapped: Project[] = data.map((p: DBProject) => {
+            let status: "progress" | "proposed" | "completed" = "proposed";
+            if (p.status === "ACTIVE") status = "progress";
+            else if (p.status === "COMPLETED") status = "completed";
+            
+            let health: "on_track" | "at_risk" | "review" = "review";
+            if (p.healthStatus === "LOW") health = "on_track";
+            else if (p.healthStatus === "HIGH") health = "at_risk";
+            
+            return {
+              id: p.id,
+              name: p.name,
+              category: p.category || "General",
+              description: p.objective,
+              status,
+              progress: p.status === "ACTIVE" ? 10 : p.status === "COMPLETED" ? 100 : 0,
+              health,
+              tasksDone: 0, 
+              tasksTotal: 0
+            };
+          });
+          setProjects(mapped);
+        }
+      } catch (err) {
+        console.error("Error fetching projects:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProjects();
+  }, [router]);
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('axiom_token');
+      const res = await fetch('/api/v1/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newName,
+          objective: newObjective,
+          targetDeadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        })
+      });
+      
+      if (res.ok) {
+        setShowModal(false);
+        setNewName("");
+        setNewObjective("");
+        // Reload projects
+        const fetchProjects = async () => {
+          const token = localStorage.getItem('axiom_token');
+          if (!token) return;
+          const res = await fetch('/api/v1/projects', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const mapped: Project[] = data.map((p: DBProject) => {
+              let status: "progress" | "proposed" | "completed" = "proposed";
+              if (p.status === "ACTIVE") status = "progress";
+              else if (p.status === "COMPLETED") status = "completed";
+              
+              let health: "on_track" | "at_risk" | "review" = "review";
+              if (p.healthStatus === "LOW") health = "on_track";
+              else if (p.healthStatus === "HIGH") health = "at_risk";
+              
+              return {
+                id: p.id,
+                name: p.name,
+                category: p.category || "General",
+                description: p.objective,
+                status,
+                progress: p.status === "ACTIVE" ? 10 : p.status === "COMPLETED" ? 100 : 0,
+                health,
+                tasksDone: 0, 
+                tasksTotal: 0
+              };
+            });
+            setProjects(mapped);
+          }
+        };
+        fetchProjects();
+      }
+    } catch (err) {
+      console.error(err);
     }
-  ]);
+  };
 
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -84,7 +181,7 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Projects Workspace</h1>
           <p className="text-zinc-400 text-sm mt-1">Monitor the execution states and goals generated by the planner.</p>
         </div>
-        <Button variant="primary" size="sm" className="rounded-xl shadow-lg shadow-purple-500/10 cursor-pointer">
+        <Button variant="primary" size="sm" onClick={() => setShowModal(true)} className="rounded-xl shadow-lg shadow-purple-500/10 cursor-pointer">
           <Plus className="w-4 h-4" />
           <span>New Project Goal</span>
         </Button>
@@ -130,7 +227,9 @@ export default function ProjectsPage() {
       </div>
 
       {/* Projects Grid */}
-      {filteredProjects.length > 0 ? (
+      {loading ? (
+        <div className="text-zinc-400 py-8">Loading campaigns...</div>
+      ) : filteredProjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project) => (
             <Card key={project.id} className="flex flex-col h-full hover:border-zinc-700/80 transition-all duration-300">
@@ -186,6 +285,52 @@ export default function ProjectsPage() {
           <h3 className="text-zinc-300 font-semibold text-sm">No campaigns found</h3>
           <p className="text-zinc-500 text-xs mt-1">Try modifying your keyword search or filters.</p>
         </Card>
+      )}
+
+      {/* New Project Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border-4 border-gray-900 max-w-md w-full p-6 space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b-2 border-zinc-800">
+              <h2 className="text-lg font-black text-white">Create New Project Goal</h2>
+              <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateProject} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-zinc-300 uppercase">Project Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. Q4 Website Redesign"
+                  className="w-full bg-zinc-950 border-2 border-zinc-800 p-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-zinc-300 uppercase">Objective / Description</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={newObjective}
+                  onChange={(e) => setNewObjective(e.target.value)}
+                  placeholder="Describe the ultimate business objective or goal..."
+                  className="w-full bg-zinc-950 border-2 border-zinc-800 p-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" type="button" onClick={() => setShowModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" size="sm" type="submit">
+                  Generate Plan
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

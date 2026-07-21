@@ -3,8 +3,11 @@ import { BullModule } from '@nestjs/bullmq';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 
+import { QueueModule } from '../modules/queue/queue.module';
+
 @Module({
   imports: [
+    QueueModule,
     BullModule.registerQueue({
       name: 'notifications',
     }),

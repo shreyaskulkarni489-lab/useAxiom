@@ -12,9 +12,11 @@ import { createIncomingMessagesWorker } from './workers/incoming-messages.worker
 import { createOutgoingMessagesWorker } from './workers/outgoing-messages.worker';
 import { createReminderSchedulerWorker } from './workers/reminder-scheduler.worker';
 import { createNotificationsWorker } from './workers/notifications.worker';
+import { createAssignmentWorker } from './workers/ai-assignment.worker';
+import { createReportingWorker } from './workers/ai-reporting.worker';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redisConnection = new IORedis(redisUrl);
+const redisConnection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
 
 console.log(`Starting Background Workers with Redis URL: ${redisUrl}...`);
 
@@ -33,9 +35,13 @@ const inboundWorker = createIncomingMessagesWorker(redisConnection as any, outgo
 const outboundWorker = createOutgoingMessagesWorker(redisConnection as any);
 const reminderWorker = createReminderSchedulerWorker(redisConnection as any, outgoingQueue);
 const notificationsWorker = createNotificationsWorker(redisConnection as any, outgoingQueue);
+const assignmentWorker = createAssignmentWorker(redisConnection as any, outgoingQueue);
+const notificationsQueue = new Queue('notifications', { connection: redisConnection as any });
+const reportingWorker = createReportingWorker(redisConnection as any, notificationsQueue);
 
 // 3. Repeatable Cron Job Setup
 const reminderSchedulerQueue = new Queue('reminder_scheduler', { connection: redisConnection as any });
+const reportingSchedulerQueue = new Queue('reporting_jobs', { connection: redisConnection as any });
 
 async function setupRepeatableJobs() {
   console.info('[Background Workers] Setting up repeatable cron jobs...');
@@ -52,6 +58,17 @@ async function setupRepeatableJobs() {
       },
     });
     console.info('[Background Workers] Repeatable job check_deadlines scheduled successfully');
+
+    const reportingJobs = await reportingSchedulerQueue.getRepeatableJobs();
+    for (const job of reportingJobs) {
+      await reportingSchedulerQueue.removeRepeatableByKey(job.key);
+    }
+    await reportingSchedulerQueue.add('check_health', {}, {
+      repeat: {
+        pattern: '*/1 * * * *', // Run every 1 minutes
+      },
+    });
+    console.info('[Background Workers] Repeatable job check_health scheduled successfully');
   } catch (error) {
     console.error('[Background Workers] Failed to setup repeatable jobs:', error);
   }
@@ -112,8 +129,12 @@ process.on('SIGTERM', async () => {
     await outboundWorker.close();
     await reminderWorker.close();
     await notificationsWorker.close();
+    await assignmentWorker.close();
+    await reportingWorker.close();
     await reminderSchedulerQueue.close();
+    await reportingSchedulerQueue.close();
     await outgoingQueue.close();
+    await notificationsQueue.close();
     for (const q of monitoringQueues) {
       await q.close();
     }
