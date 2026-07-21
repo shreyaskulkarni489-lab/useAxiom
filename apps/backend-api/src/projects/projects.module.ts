@@ -13,6 +13,9 @@ import { QueueModule } from '../modules/queue/queue.module';
     BullModule.registerQueue({
       name: 'planner_jobs',
     }),
+    BullModule.registerQueue({
+      name: 'assignment_jobs',
+    }),
   ],
   controllers: [ProjectsController],
   providers: [ProjectsService],

@@ -95,9 +95,13 @@ model Project {
   managerId      String?        @map("manager_id") @db.Uuid
   name           String
   objective      String
-  status         ProjectStatus  @default(PLANNING)
-  targetDeadline DateTime?      @map("target_deadline")
-  createdAt      DateTime       @default(now()) @map("created_at")
+  status            ProjectStatus  @default(PLANNING)
+  targetDeadline    DateTime?      @map("target_deadline")
+  healthScore       Int?           @map("health_score")
+  healthStatus      String?        @map("health_status")
+  healthReasoning   String?        @map("health_reasoning")
+  healthSuggestions Json?          @map("health_suggestions")
+  createdAt         DateTime       @default(now()) @map("created_at")
   deletedAt      DateTime?      @map("deleted_at")
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   manager        User?          @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)

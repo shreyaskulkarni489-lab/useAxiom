@@ -178,6 +178,12 @@ importers:
       '@useaxiom/ai-core':
         specifier: workspace:*
         version: link:../../packages/ai-core
+      '@useaxiom/ai-memory':
+        specifier: workspace:*
+        version: link:../../packages/ai-memory
+      '@useaxiom/ai-providers':
+        specifier: workspace:*
+        version: link:../../packages/ai-providers
       '@useaxiom/database':
         specifier: workspace:*
         version: link:../../packages/database

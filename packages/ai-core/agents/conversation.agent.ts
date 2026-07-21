@@ -27,16 +27,17 @@ const conversationJsonSchema = {
     },
     confidenceScore: { type: 'number' },
     extractedParameters: {
-      type: 'object',
+      type: ['object', 'null'],
       properties: {
-        blockReason: { type: 'string' },
-        delayReason: { type: 'string' },
-        estimatedCompletionDate: { type: 'string' }
+        blockReason: { type: ['string', 'null'] },
+        delayReason: { type: ['string', 'null'] },
+        estimatedCompletionDate: { type: ['string', 'null'] }
       },
+      required: ['blockReason', 'delayReason', 'estimatedCompletionDate'],
       additionalProperties: false
     }
   },
-  required: ['reply', 'intent', 'confidenceScore'],
+  required: ['reply', 'intent', 'confidenceScore', 'extractedParameters'],
   additionalProperties: false
 };
 

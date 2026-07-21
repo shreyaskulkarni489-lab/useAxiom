@@ -5,40 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
-  Clock, 
   MessageSquare, 
   Plus, 
   ChevronRight, 
   Activity,
-  Play
+  Play,
+  AlertTriangle
 } from "lucide-react";
 import { Button, Card, Badge } from "@useaxiom/ui";
-
-interface Task {
-  id: string;
-  name: string;
-  assignee: string;
-  status: "completed" | "progress" | "blocked" | "pending" | "proposed";
-  blockerDescription?: string;
-  duration: string;
-}
-
-interface Milestone {
-  id: string;
-  title: string;
-  status: "completed" | "progress" | "pending";
-  tasks: Task[];
-}
-
-interface ProjectDetails {
-  id: string;
-  name: string;
-  category: string;
-  health: "on_track" | "at_risk" | "review";
-  progress: number;
-  description: string;
-  milestones: Milestone[];
-}
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -47,77 +21,79 @@ interface PageProps {
 export default function ProjectDetailPage({ params }: PageProps) {
   const { id } = use(params);
 
-  const [project, setProject] = useState<any>(null);
-  const [milestones, setMilestones] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [project, setProject] = useState<Record<string, unknown> | null>(null);
+  const [tasks, setTasks] = useState<Array<{
+    id: string;
+    title: string;
+    status: string;
+    description?: string;
+    estimatedHours?: number;
+  }>>([]);
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
 
-  const fetchData = async () => {
-    try {
-      const token = localStorage.getItem('axiom_token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-      
-      const headers = { 'Authorization': `Bearer ${token}` };
-
-      const [pRes, mRes, tRes] = await Promise.all([
-        fetch(`http://localhost:3000/api/v1/projects/${id}`, { headers }),
-        fetch(`http://localhost:3000/api/v1/projects/${id}/milestones`, { headers }),
-        fetch(`http://localhost:3000/api/v1/projects/${id}/tasks`, { headers })
-      ]);
-
-      if (pRes.status === 401 || mRes.status === 401 || tRes.status === 401) {
-        localStorage.removeItem('axiom_token');
-        router.push('/login');
-        return;
-      }
-
-      setProject(await pRes.json());
-      setMilestones(await mRes.json());
-      setTasks(await tRes.json());
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('axiom_token');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
+        
+        const headers = { 'Authorization': `Bearer ${token}` };
+  
+        const [pRes, tRes] = await Promise.all([
+          fetch(`/api/v1/projects/${id}`, { headers }),
+          fetch(`/api/v1/projects/${id}/tasks`, { headers })
+        ]);
+  
+        if (pRes.status === 401 || tRes.status === 401) {
+          localStorage.removeItem('axiom_token');
+          router.push('/login');
+          return;
+        }
+  
+        setProject(await pRes.json());
+        setTasks(await tRes.json());
+      } catch (e: unknown) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchData();
   }, [id, router]);
 
-  const handleResolveBlocker = (taskId: string) => {
+  const handleResolveBlocker = () => {
     // Implement API call if needed
-    fetchData();
+    // Reload manually or update state
   };
 
   const handleApprovePlan = async () => {
     try {
       const token = localStorage.getItem('axiom_token');
-      await fetch(`http://localhost:3000/api/v1/projects/${id}/approve`, { 
+      await fetch(`/api/v1/projects/${id}/approve`, { 
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      fetchData();
-    } catch (e) {
+      // Optionally trigger reload here
+    } catch (e: unknown) {
       console.error(e);
     }
   };
 
   if (loading) {
-    return <div className="text-zinc-400 p-8">Loading project details...</div>;
+    return <div className="text-gray-400 p-8">Loading project details...</div>;
   }
 
   if (!project) {
-    return <div className="text-rose-400 p-8">Project not found</div>;
+    return <div className="text-red-500 p-8">Project not found</div>;
   }
 
-  const getTaskStatusBadge = (status: Task["status"]) => {
-    switch (status) {
+  const getTaskStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
       case "completed":
         return <Badge variant="completed">Done</Badge>;
       case "progress":
@@ -135,53 +111,67 @@ export default function ProjectDetailPage({ params }: PageProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Breadcrumb back navigation */}
-      <Link href="/projects" className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors font-medium">
+      <Link href="/projects" className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors font-bold">
         <ArrowLeft className="w-3.5 h-3.5" />
         <span>Back to Projects</span>
       </Link>
 
       {/* Campaign Details Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-6 border-b border-zinc-900">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-6 border-b-2 border-gray-100">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-purple-400 uppercase tracking-widest bg-purple-500/5 px-2.5 py-0.5 rounded border border-purple-500/10">
-              {project.status || 'PROJECT'}
+            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2.5 py-0.5 rounded-sm">
+              {(project.status as string) || 'PROJECT'}
             </span>
             <Badge variant={project.status === "ACTIVE" ? "progress" : project.status === "COMPLETED" ? "completed" : "proposed"}>
               {project.status === "ACTIVE" ? "In Progress" : project.status === "COMPLETED" ? "Done" : "Awaiting Review"}
             </Badge>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-100">{project.name}</h1>
-          <p className="text-zinc-400 text-sm max-w-2xl">{project.objective}</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">{project.name as string}</h1>
+          <p className="text-gray-500 text-base max-w-2xl font-medium">{project.objective as string}</p>
         </div>
 
         {/* Progress Bar Widget */}
-        <div className="w-full lg:w-72 bg-zinc-900 p-4 rounded-2xl border border-zinc-850 space-y-2">
-          <div className="flex justify-between items-center text-xs font-semibold">
-            <span className="text-zinc-500 uppercase tracking-wider">Campaign Progress</span>
-            <span className="text-zinc-200">{project.status === 'ACTIVE' ? 10 : 0}%</span>
-          </div>
-          <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full" style={{ width: `${project.status === 'ACTIVE' ? 10 : 0}%` }} />
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+          {project.healthScore !== undefined && project.healthScore !== null && (
+            <div className={`w-full lg:w-72 bg-white p-5 border-4 ${project.healthStatus === 'HIGH' ? 'border-red-600' : project.healthStatus === 'MEDIUM' ? 'border-amber-500' : 'border-emerald-500'} space-y-3`}>
+              <div className="flex justify-between items-center text-sm font-bold">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className={`w-4 h-4 ${project.healthStatus === 'HIGH' ? 'text-red-600' : project.healthStatus === 'MEDIUM' ? 'text-amber-600' : 'text-emerald-600'}`} />
+                  <span className="text-gray-900 uppercase tracking-wider">AI Risk</span>
+                </div>
+                <span className={project.healthStatus === 'HIGH' ? 'text-red-600' : project.healthStatus === 'MEDIUM' ? 'text-amber-600' : 'text-emerald-600'}>{project.healthScore as number}/100</span>
+              </div>
+              <p className="text-xs font-medium text-gray-600 line-clamp-2">{project.healthReasoning as string}</p>
+            </div>
+          )}
+          <div className="w-full lg:w-72 bg-white p-5 border-4 border-gray-900 space-y-3">
+            <div className="flex justify-between items-center text-sm font-bold">
+              <span className="text-gray-900 uppercase tracking-wider">Campaign Progress</span>
+              <span className="text-blue-600">{project.status === 'ACTIVE' ? 10 : 0}%</span>
+            </div>
+            <div className="w-full bg-gray-200 h-2">
+              <div className="bg-blue-600 h-full" style={{ width: `${project.status === 'ACTIVE' ? 10 : 0}%` }} />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Actions Bar */}
-      <div className="flex justify-between items-center gap-4 bg-zinc-900/15 p-4 rounded-xl border border-zinc-900">
+      <div className="flex justify-between items-center gap-4 bg-gray-50 p-4 rounded-md border-2 border-gray-100">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-purple-400" />
-          <span className="text-xs font-semibold text-zinc-300">Campaign Execution Log</span>
+          <Activity className="w-5 h-5 text-blue-500" />
+          <span className="text-sm font-bold text-gray-900 tracking-wide">Campaign Execution Log</span>
         </div>
         <div className="flex gap-2">
           {tasks.some(t => t.status === "PROPOSED") && (
-            <Button variant="primary" size="sm" onClick={handleApprovePlan} className="rounded-xl">
-              <Play className="w-3.5 h-3.5 text-white fill-white" />
+            <Button variant="primary" size="sm" onClick={handleApprovePlan}>
+              <Play className="w-4 h-4" />
               <span>Approve Proposed Plan</span>
             </Button>
           )}
-          <Button variant="outline" size="sm" className="rounded-xl">
-            <Plus className="w-3.5 h-3.5" />
+          <Button variant="outline" size="sm">
+            <Plus className="w-4 h-4" />
             <span>Add Task</span>
           </Button>
         </div>
@@ -193,22 +183,22 @@ export default function ProjectDetailPage({ params }: PageProps) {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <ChevronRight className="w-4 h-4 text-zinc-500" />
-                <h3 className="font-bold text-zinc-200 text-sm">All Tasks</h3>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+                <h3 className="font-bold text-gray-900 text-lg tracking-tight">All Tasks</h3>
               </div>
             </div>
 
             {/* Task list inside card */}
-            <Card className="divide-y divide-zinc-800/60 p-0 overflow-hidden">
+            <Card className="divide-y-2 divide-gray-100 p-0 overflow-hidden">
               {tasks.map((task) => (
-                <div key={task.id} className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-zinc-900/15 transition-colors">
+                <div key={task.id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50 transition-colors">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-zinc-200">{task.title}</span>
-                      {getTaskStatusBadge(task.status.toLowerCase())}
+                      <span className="text-base font-bold text-gray-900">{task.title}</span>
+                      {getTaskStatusBadge(task.status)}
                     </div>
                     {task.description && (
-                      <span className="text-xs text-zinc-400 font-medium block max-w-xl">
+                      <span className="text-sm text-gray-500 font-medium block max-w-xl">
                         {task.description}
                       </span>
                     )}
@@ -216,20 +206,20 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
                   <div className="flex items-center gap-4 self-end sm:self-auto">
                     {/* Task Metadata */}
-                    <div className="flex items-center gap-3 text-xs text-zinc-400">
-                      <span className="font-semibold bg-zinc-950 px-2.5 py-1 rounded border border-zinc-850">
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span className="font-bold bg-gray-100 px-3 py-1.5 rounded-sm">
                         {task.estimatedHours || 1} hrs
                       </span>
                     </div>
 
                     {/* Interactive Resolves */}
                     {task.status === "BLOCKED" && (
-                      <Button variant="danger" size="sm" onClick={() => handleResolveBlocker(task.id)} className="h-8 text-[11px] rounded-lg">
+                      <Button variant="danger" size="sm" onClick={() => handleResolveBlocker()} className="h-9">
                         Resolve Blocker
                       </Button>
                     )}
-                    <button className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-850 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-200 transition-colors">
-                      <MessageSquare className="w-3.5 h-3.5" />
+                    <button className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer border-0">
+                      <MessageSquare className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -237,7 +227,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
             </Card>
           </div>
         ) : (
-          <div className="text-zinc-500 text-sm py-4">No tasks found for this project yet.</div>
+          <div className="text-gray-500 font-medium py-4">No tasks found for this project yet.</div>
         )}
       </div>
     </div>

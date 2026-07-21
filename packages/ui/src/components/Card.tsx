@@ -5,7 +5,7 @@ export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
     return (
       <div
         ref={ref}
-        className={`bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-6 shadow-xl transition-all duration-300 hover:border-zinc-700/60 ${className}`}
+        className={`bg-white rounded-lg p-6 sm:p-8 cursor-pointer transition-all duration-200 hover:scale-[1.02] border-0 shadow-none ring-0 ${className}`}
         {...props}
       >
         {children}
@@ -23,14 +23,14 @@ export const CardHeader = ({ className = "", children, ...props }: HTMLAttribute
 CardHeader.displayName = "CardHeader";
 
 export const CardTitle = ({ className = "", children, ...props }: HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={`text-lg font-semibold leading-none tracking-tight text-zinc-100 ${className}`} {...props}>
+  <h3 className={`text-xl font-bold leading-none tracking-tight text-gray-900 ${className}`} {...props}>
     {children}
   </h3>
 );
 CardTitle.displayName = "CardTitle";
 
 export const CardDescription = ({ className = "", children, ...props }: HTMLAttributes<HTMLParagraphElement>) => (
-  <p className={`text-sm text-zinc-400 ${className}`} {...props}>
+  <p className={`text-sm font-medium text-gray-500 ${className}`} {...props}>
     {children}
   </p>
 );
@@ -44,7 +44,7 @@ export const CardContent = ({ className = "", children, ...props }: HTMLAttribut
 CardContent.displayName = "CardContent";
 
 export const CardFooter = ({ className = "", children, ...props }: HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex items-center mt-6 pt-4 border-t border-zinc-800/60 ${className}`} {...props}>
+  <div className={`flex items-center mt-6 pt-4 border-t-2 border-gray-100 ${className}`} {...props}>
     {children}
   </div>
 );

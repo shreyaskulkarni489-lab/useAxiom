@@ -10,6 +10,7 @@ export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('planner_jobs') private readonly plannerQueue: Queue,
+    @InjectQueue('assignment_jobs') private readonly assignmentQueue: Queue,
   ) {}
 
   async create(organizationId: string, managerId: string, dto: CreateProjectDto): Promise<Project> {
@@ -94,6 +95,12 @@ export class ProjectsService {
       data: {
         status: 'PENDING',
       },
+    });
+
+    // Enqueue assignment job to auto-assign PENDING tasks
+    await this.assignmentQueue.add('assign-tasks', {
+      projectId: id,
+      tenantId: organizationId,
     });
 
     return updatedProject;
