@@ -1,22 +1,20 @@
-import React from 'react';
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/");
+  }, [router]);
+
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-4">Manager Dashboard</h1>
-      <div className="grid grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold">Active Projects</h2>
-          <p className="text-4xl mt-4 font-bold text-blue-600">3</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold">Pending AI Approvals</h2>
-          <p className="text-4xl mt-4 font-bold text-yellow-600">2</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold">At Risk Tasks</h2>
-          <p className="text-4xl mt-4 font-bold text-red-600">1</p>
-        </div>
+    <div className="flex h-64 items-center justify-center text-zinc-500 font-semibold text-sm">
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-4 border-2 border-zinc-500/30 border-t-zinc-400 rounded-full animate-spin" />
+        <span>Redirecting to Console...</span>
       </div>
     </div>
   );
