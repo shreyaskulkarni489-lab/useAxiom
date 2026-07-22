@@ -2,10 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Project, ProjectStatus } from '@useaxiom/database';
 import { CreateProjectDto } from './dto/project.dto';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue('planner_jobs') private readonly plannerQueue: Queue,
+    @InjectQueue('assignment_jobs') private readonly assignmentQueue: Queue,
+  ) {}
 
   async create(organizationId: string, managerId: string, dto: CreateProjectDto): Promise<Project> {
     return this.prisma.project.create({
@@ -91,6 +97,12 @@ export class ProjectsService {
       },
     });
 
+    // Enqueue assignment job to auto-assign PENDING tasks
+    await this.assignmentQueue.add('assign-tasks', {
+      projectId: id,
+      tenantId: organizationId,
+    });
+
     return updatedProject;
   }
 
@@ -99,9 +111,17 @@ export class ProjectsService {
     if (!project) {
       throw new NotFoundException(`Project with ID ${id} not found under your organization`);
     }
+    const jobId = `job_${Math.random().toString(36).substring(2, 11)}`;
+    
+    await this.plannerQueue.add('generate-plan', {
+      projectId: id,
+      objective: project.objective,
+      tenantId: organizationId,
+    });
+
     return {
       message: 'Plan generation triggered',
-      jobId: `job_${Math.random().toString(36).substring(2, 11)}`,
+      jobId,
       projectId: id,
     };
   }

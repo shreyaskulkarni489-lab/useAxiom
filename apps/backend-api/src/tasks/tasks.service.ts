@@ -151,10 +151,21 @@ export class TasksService {
       });
 
       const incomplete = blockedBy.filter(
+<<<<<<< HEAD
         (dep) => dep.dependsOnTask.status !== 'COMPLETED' && dep.dependsOnTask.deletedAt === null,
       );
       if (incomplete.length > 0) {
         const names = incomplete.map((dep) => `'${dep.dependsOnTask.title}'`).join(', ');
+=======
+        (dep: any) =>
+          dep.dependsOnTask.status !== 'COMPLETED' &&
+          dep.dependsOnTask.deletedAt === null,
+      );
+      if (incomplete.length > 0) {
+        const names = incomplete
+          .map((dep: any) => `'${dep.dependsOnTask.title}'`)
+          .join(', ');
+>>>>>>> fd5b481ec1ea730d5a4c7eb6bce401237e197930
         throw new BadRequestException(
           `Cannot start task. It is blocked by incomplete prerequisite tasks: ${names}.`,
         );
